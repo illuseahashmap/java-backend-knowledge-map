@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Java知识图谱 - Markmap</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f8fafc;
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --panel: rgba(255, 255, 255, 0.84);
+      --border: #dbeafe;
+    }
+
+    html,
+    body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 18% 16%, rgba(37, 99, 235, 0.12), transparent 30%),
+        linear-gradient(135deg, #ffffff 0%, var(--bg) 58%, #eef6ff 100%);
+      color: var(--text-main);
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+    }
+
+    .toolbar {
+      position: fixed;
+      z-index: 2;
+      top: 18px;
+      left: 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--panel);
+      box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+      backdrop-filter: blur(14px);
+    }
+
+    .title {
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .link {
+      color: #2563eb;
+      font-size: 14px;
+      text-decoration: none;
+    }
+
+    .link:hover {
+      text-decoration: underline;
+    }
+
+    #mindmap {
+      width: 100vw;
+      height: 100vh;
+    }
+
+    .status {
+      position: fixed;
+      left: 20px;
+      bottom: 18px;
+      max-width: min(620px, calc(100vw - 40px));
+      padding: 10px 14px;
+      border: 1px solid #bfdbfe;
+      border-radius: 10px;
+      background: rgba(239, 246, 255, 0.92);
+      color: #1e40af;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .status.error {
+      border-color: #fecaca;
+      background: rgba(254, 242, 242, 0.92);
+      color: #991b1b;
+    }
+
+    .status.hidden {
+      display: none;
+    }
+
+    #mindmap .markmap-node text {
+      fill: var(--text-main);
+      font-weight: 600;
+      paint-order: stroke;
+      stroke: rgba(255, 255, 255, 0.88);
+      stroke-width: 3px;
+      stroke-linejoin: round;
+    }
+
+    #mindmap .markmap-node:nth-child(n+4) text {
+      fill: var(--text-muted);
+      font-weight: 500;
+    }
+
+    #mindmap .markmap-node circle {
+      fill: #ffffff;
+      stroke: var(--border);
+      stroke-width: 1.5px;
+    }
+
+    #mindmap .markmap-link {
+      stroke-width: 2.4px;
+      stroke-opacity: 0.72;
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <span class="title">Java知识图谱</span>
+    <a class="link" href="https://github.com/illuseahashmap/java-backend-knowledge-map/blob/main/java-backend-knowledge-map.md">Markdown 源文件</a>
+    <a class="link" href="https://github.com/illuseahashmap/java-backend-knowledge-map">返回仓库</a>
+  </div>
+  <svg id="mindmap"></svg>
+  <div class="status" id="status">正在加载 Markmap...</div>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  <script src="https://cdn.jsdelivr.net/npm/markmap-lib@0.18.12"></script>
+  <script src="https://cdn.jsdelivr.net/npm/markmap-view@0.18.12"></script>
+  <script>
+    const markdownUrl = 'https://api.github.com/repos/illuseahashmap/java-backend-knowledge-map/contents/java-backend-knowledge-map.md?ref=main';
+    const statusNode = document.getElementById('status');
+
+    async function renderMindmap() {
+      const response = await fetch(`${markdownUrl}&t=${Date.now()}`);
+      if (!response.ok) {
+        throw new Error(`Markdown request failed: ${response.status}`);
+      }
+
+      const file = await response.json();
+      const binary = atob(file.content.replace(/\s/g, ''));
+      const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+      const rawMarkdown = new TextDecoder('utf-8').decode(bytes);
+      const transformer = new markmap.Transformer();
+      const { root, frontmatter } = transformer.transform(rawMarkdown);
+
+      const options = markmap.deriveOptions({
+        autoFit: true,
+        colorFreezeLevel: 2,
+        color: ['#2563eb', '#16a34a', '#ea580c', '#7c3aed', '#0891b2', '#dc2626'],
+        duration: 260,
+        initialExpandLevel: 4,
+        maxWidth: 360,
+        paddingX: 12,
+        spacingHorizontal: 90,
+        spacingVertical: 10,
+        ...(frontmatter?.markmap || {})
+      });
+      options.autoFit = true;
+
+      const mindmap = markmap.Markmap.create(document.querySelector('#mindmap'), options);
+
+      await mindmap.setData(root);
+      await mindmap.fit();
+
+      if (!document.querySelector('#mindmap .markmap-node')) {
+        throw new Error('Markmap rendered no nodes');
+      }
+
+      statusNode.classList.add('hidden');
+    }
+
+    renderMindmap().catch((error) => {
+      statusNode.textContent = `Markmap 加载失败：${error.message}`;
+      statusNode.classList.add('error');
+      console.error(error);
+    });
+  </script>
+</body>
+</html>

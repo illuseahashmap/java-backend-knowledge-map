@@ -2,13 +2,60 @@
 markmap:
   autoFit: true
   colorFreezeLevel: 4
-  initialExpandLevel: 6
+  initialExpandLevel: 4
   maxWidth: 500
   spacingHorizontal: 90
   spacingVertical: 10
 ---
 
 # Java知识图谱
+
+## 基础
+
+## 并发
+
+### AbstractQueuedSynchronizer
+
+#### 结构
+
+##### 一个 CAS 修改的 volatile 的 int 类型的 state
+
+- park
+- unpark
+
+##### 一个 FIFO ==双向== 同步队列
+
+- 线程异常时，方便移除
+- 忙等时挂起（前驱已经在等待了，挂起当前）
+- 支持从队尾开始判断是否在队列中
+- 减少并发，源码很多从队尾遍历，猜测是减少队头的并发
+
+##### Condition 条件队列
+
+- 开发者显示调用 condition.signal() 放入同步队尾，而不是直接执行
+
+##### Node
+
+###### 被封装的线程
+
+###### 前驱 / 后继
+
+###### 共享模式 tryAcquireShared
+
+- Semaphore
+- CountDownLatch
+- ReadLock
+
+###### 独占模式 tryAcquire
+
+- ReentrantLock
+
+
+## JVM
+
+## MySQL
+
+## Redis
 
 ## 消息队列
 
@@ -216,6 +263,78 @@ markmap:
 
 ### RabbitMQ
 
+#### 架构
+
+- Producer
+- Broker（Exchange <-- Binding --> Queue）
+- Consumer
+
+#### 可靠性保证
+
+##### 持久化交换机
+
+##### 持久化队列
+
+##### 消费者确认
+
+##### 默认生产者不会等待回执
+
+##### Publisher Confirm
+
+- 解决有没有到达Broker，不保证倒霉到达Queue，仍有可能丢失
+
+#### 重复消费
+
+- 正常流程：发送->确认->删除
+- 消费者：一锁二判三更新
+
+#### 可靠性保证
+
+##### 普通集群模式
+
+- 元数据所有实例共享
+- 数据本质分片
+
+##### 镜像模式
+
+- 所有实例一样
+- 需同步
+
+#### 消息模型
+
+##### 简单模式
+
+- 同步
+- 单生产者 / 单消费者
+
+##### 工作队列模式
+
+- 单生产者 / 多消费者
+
+##### 发布订阅模式
+
+##### 路由模式
+
+##### 主题模式
+
+##### RPC模式
+
+- 分布式
+
+#### 事务
+
+- 主要是生产者的AMQP事务
+- 开启事务 --> 提交消息 --> 提交事务 -->失败回滚
+- 通常用Publisher Confirm替代
+- 到达Broker靠确认，到达Queue靠开启默认退回
+
+#### 死信队列
+
+- 处理失败
+- 过期
+- 拒绝
+- 无法路由
+
 ### ActiveMQ
 
 ## Agent开发
@@ -341,3 +460,21 @@ markmap:
 ##### 做幂等校验
 
 ##### 缺失信息提示用户补充
+
+
+## 问题排查
+
+### 问题记录
+
+#### 代码未生效 2026/07/29
+
+##### 现象：代码已提交，Jenkins 中 Maven 成功生成新 JAR，但新代码未生效
+
+##### 原因：之前调整过 JDK 17 拉取配置，与当前 Dockerfile 不匹配，导致镜像构建、推送失败。流水线未中断，继续部署了旧镜像。
+
+##### 解决方案
+
+- 统一 Jenkins 与 Dockerfile 使用的 JDK 17 基础镜像，建议使用公司 Harbor 中的固定镜像。
+- 清理或修复 Jenkins 节点的 BuildKit/镜像代理缓存。
+- Docker build或push失败时立即终止流水线，禁止继续部署。
+- 新镜像推送成功后重新拉取并创建容器，确认镜像 digest 和运行 JAR 为最新版本。

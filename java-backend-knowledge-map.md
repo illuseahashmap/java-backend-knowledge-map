@@ -8,7 +8,7 @@ markmap:
   spacingVertical: 10
 ---
 
-# Java知识图谱
+# Java 知识图谱
 
 ## 基础
 
@@ -18,7 +18,7 @@ markmap:
 
 #### 结构
 
-##### 一个 CAS 修改的 volatile 的 int 类型的 state
+##### 一个 CAS 修改的 volatile int 类型的 state
 
 - park
 - unpark
@@ -32,7 +32,7 @@ markmap:
 
 ##### Condition 条件队列
 
-- 开发者显示调用 condition.signal() 放入同步队尾，而不是直接执行
+- 开发者显示调用 Condition.signal() 放入同步队尾，而不是直接执行
 
 ##### Node
 
@@ -59,19 +59,37 @@ markmap:
 
 ## 消息队列
 
+### 总结
+
+#### Kafka
+
+- 偏事件流 / 日志流，核心是 Partition Log、offset、长期保留、回放和大数据生态。
+
+#### RocketMQ
+
+- 偏业务消息，核心是事务消息、延迟消息、顺序消息、重试、死信和消息轨迹。
+
+#### RabbitMQ
+
+- 偏灵活路由和任务队列，核心是 Exchange、Binding、RoutingKey、Queue、ACK / Confirm。
+
 ### Kafka
+
+#### 一句话概括
+
+- 分布式提交日志
 
 #### 架构
 
-##### Producer ： ack = 0/1/-1
+##### Producer：ack = 0 / 1 / -1
 
-##### Broker ：
+##### Broker：
 
 - Topic 是逻辑分类，Partition 是 Topic 的分片，Partition 的 Leader / Follower 副本分布在不同 Broker 上
-- ISR 旧 Follower落后条数，短期大量消息会导致Follower下线
-- ISR 新 Follower落后条数 + 落后时间
+- ISR 旧 Follower 落后条数，短期大量消息会导致 Follower 下线
+- ISR 新 Follower 落后条数 + 落后时间
 
-##### Consumer ： 手动提交偏移量，无法依靠Kafka保证幂等；
+##### Consumer：手动提交偏移量，无法依靠 Kafka 保证幂等；
 
 #### Kafka 元数据管理
 
@@ -149,7 +167,7 @@ markmap:
 
 #### 副本同步
 
-##### Leader/Follower
+##### Leader / Follower
 
 - Partition 有 Leader 和 Follower 副本
 - Producer 和 Consumer 主要访问 Leader
@@ -162,9 +180,9 @@ markmap:
 
 ##### 可靠性参数
 
-- acks=all 表示等待 ISR 中副本确认
+- acks = all 表示等待 ISR 中副本确认
 - min.insync.replicas 表示最少同步副本数
-- acks=all + min.insync.replicas 可以提高消息可靠性
+- acks = all + min.insync.replicas 可以提高消息可靠性
 
 #### 顺序性
 
@@ -172,7 +190,7 @@ markmap:
 
 - Kafka 只保证单个 Partition 内有序
 - 不保证 Topic 全局有序
-- 保证有序 ：Partition中只有一个Topic / 业务侧排序
+- 保证有序：Partition 中只有一个 Topic / 业务侧排序
 
 ##### 如何保证业务顺序
 
@@ -184,9 +202,9 @@ markmap:
 
 ##### 触发条件
 
-- Consumer数量变化
-- Topic数量变化
-- Partition数量变化
+- Consumer 数量变化
+- Topic 数量变化
+- Partition 数量变化
 
 ##### 具体步骤
 
@@ -198,25 +216,29 @@ markmap:
 
 #### 事务
 
-- 业务处理后提交offset + 幂等
+- 业务处理后提交 offset + 幂等
 
 ### RocketMQ
+
+#### 一句话概括
+
+- 面向业务事件的消息中间件
 
 #### 架构
 
 ##### Producer
 
-##### Broker（Topic（独立Queue，Queue，...），Topic，...）
+##### Broker（Topic（独立 Queue，Queue，...），Topic，...）
 
 ##### Consumer
 
-##### NameServer ： 维护Broker的元数据
+##### NameServer：维护 Broker 的元数据
 
 #### 集群
 
-- 单master
-- 多master
-- 多master，多slave
+- 单 Master
+- 多 Master
+- 多 Master，多 Slave
 
 #### 消息模型
 
@@ -226,13 +248,13 @@ markmap:
 #### 可靠性保证
 
 - 生产者选用同步推送，接收回调
-- Broker使用集群部署，且改为同步刷盘
-- 消费者Ack确认
+- Broker 使用集群部署，且改为同步刷盘
+- 消费者 ACK 确认
 
 #### 顺序性
 
 - 同步发送
-- 指定Queue
+- 指定 Queue
 - 有序消费模式（另一种并发消费模式）
 
 #### 事务
@@ -263,6 +285,10 @@ markmap:
 
 ### RabbitMQ
 
+#### 一句话概括
+
+- 基于 Exchange 的灵活路由消息队列
+
 #### 架构
 
 - Producer
@@ -281,11 +307,11 @@ markmap:
 
 ##### Publisher Confirm
 
-- 解决有没有到达Broker，不保证倒霉到达Queue，仍有可能丢失
+- 解决有没有到达 Broker，不保证倒霉到达 Queue，仍有可能丢失
 
 #### 重复消费
 
-- 正常流程：发送->确认->删除
+- 正常流程：发送 -> 确认 -> 删除
 - 消费者：一锁二判三更新
 
 #### 可靠性保证
@@ -317,16 +343,16 @@ markmap:
 
 ##### 主题模式
 
-##### RPC模式
+##### RPC 模式
 
 - 分布式
 
 #### 事务
 
-- 主要是生产者的AMQP事务
-- 开启事务 --> 提交消息 --> 提交事务 -->失败回滚
-- 通常用Publisher Confirm替代
-- 到达Broker靠确认，到达Queue靠开启默认退回
+- 主要是生产者的 AMQP 事务
+- 开启事务 -> 提交消息 -> 提交事务 -> 失败回滚
+- 通常用 Publisher Confirm 替代
+- 到达 Broker 靠确认，到达 Queue 靠开启默认退回
 
 #### 死信队列
 
@@ -337,23 +363,23 @@ markmap:
 
 ### ActiveMQ
 
-## Agent开发
+## Agent 开发
 
 ### 常见问题
 
-#### 避免PDF中表格被切断
+#### 避免 PDF 中表格被切断
 
 ##### 页面解析
 
-##### 判断文本/表格
+##### 判断文本 / 表格
 
-##### 正文按段/表格按表
+##### 正文按段 / 表格按表
 
 ##### 注意事项
 
 - 表格分片按行
 - 均保留表头
-- 表格转md而不是文本
+- 表格转 MD 而不是文本
 - 添加元数据
 - 分片器添加规则
 
@@ -361,7 +387,7 @@ markmap:
 
 ##### 固定权重
 
-- 文字说明多/图表截图多/商品图片检索
+- 文字说明多 / 图表截图多 / 商品图片检索
 - 归一化
 
 ##### 按问题类型分配
@@ -382,15 +408,25 @@ markmap:
 - text_score
 - image_score
 - query_type
-- 是否包含“图/表/截图”
-- chunk 类型：text/table/image
+- 是否包含“图 / 表 / 截图”
+- chunk 类型：text / table / image
 - 历史命中率
 
-#### 工程和Prompt防止大模型幻觉
+#### 工程和 Prompt 防止大模型幻觉
 
-##### 工程为主，Prompt为辅
+##### 产生原因
 
-###### RAG只允许基于检索结果而非常识
+- 预测补全
+- 上下文不足
+- 上下文腐化
+- 检索召回错误
+- 没有 reranker
+- 没有对工具结果进行校验
+- Prompt 约束不足
+
+##### 工程为主，Prompt 为辅
+
+###### RAG 只允许基于检索结果而非常识
 
 ###### 返回答案必须带引用，否则标记为推测
 
@@ -399,8 +435,8 @@ markmap:
 
 ###### 检索质量控制
 
-- TopK召回 / 多路召回
-- reranker重排
+- TopK 召回 / 多路召回
+- reranker 重排
 - 相似度阈值
 - 主子分片
 - 表格 / 图片结构化
@@ -409,18 +445,18 @@ markmap:
 
 ###### 答案后校验
 
-##### Prompt添加规则，Agent调用Prompt时检查
+##### Prompt 添加规则，Agent 调用 Prompt 时检查
 
 ##### 实用组合
 
 - 混合检索：BM25 + 向量
-- reranker精排
+- reranker 精排
 - 相似度阈值
 - 主子分片
 - 答案引用，无证据不回答
 - 结果校验，高风险工具确认
 
-#### 长期画像/短期记忆存储
+#### 长期画像 / 短期记忆存储
 
 ##### 长期画像：跨会话保留
 
@@ -443,17 +479,41 @@ markmap:
 
 ##### 短期聊天
 
-- message表
-- Redis会话缓存
+- message 表
+- Redis 会话缓存
 - 本地上下文窗口
 - 对象存储归档
 - (conversation_id, user_id, role, content, created_at, token_count, metadata)
 
-#### 大模型生成json调用工具
+##### 压缩上下文
 
-##### 最好用填参数形式而非json
+###### 长期记忆
 
-##### Prompt中明确需要json格式
+- 长期目标
+- 项目背景
+- 反复出现的薄弱点
+- 稳定决策
+
+###### 短期记忆
+
+- 最新目标
+- 未解决问题
+- 已确认结论
+- 去除冲突后可转入长期记忆
+
+###### 避免腐化
+
+- 加时间戳，新覆盖旧
+- 加置信度
+- 可失效
+- 避免推测
+- 用户纠正优先
+
+#### 大模型生成 JSON 调用工具
+
+##### 最好用填参数形式而非 JSON
+
+##### Prompt 中明确需要 JSON 格式
 
 ##### 代码中做转换 / 校验
 
@@ -461,6 +521,113 @@ markmap:
 
 ##### 缺失信息提示用户补充
 
+#### 检索策略
+
+##### 问题理解
+
+- 判断问题类型：事实、步骤、故障、对比、表格、图片
+- 识别关键词：型号、字段、故障码、时间、版本
+
+##### 多路召回
+
+- 向量召回：语义相似
+- BM25 / 关键词召回：精确匹配
+- 表格 / OCR / 图片召回：结构化和多模态内容
+- 多路结果合并去重
+
+##### 过滤
+
+- 权限过滤
+- 版本过滤
+- 时间过滤
+- 文档类型过滤
+- 业务域过滤
+
+##### 重排
+
+- Reranker 精排候选 chunk
+- 解决语义相似但答非所问
+- TopK 召回后取最相关 TopN
+
+##### 上下文组装
+
+- 命中小 chunk，回填 parent chunk
+- 表格保留表头和标题
+- 段落保留章节路径和相邻上下文
+- 注入 citation_id
+
+##### 置信度判断
+
+- 分数低：拒答或追问
+- 证据冲突：列出冲突来源
+- 证据充分：回答并引用
+
+#### Agent
+
+##### Agent 自主规划工具使用
+
+- 规划受 Skill 影响
+- 理解目标
+- 判断缺少信息
+- 选择工具
+- 执行工具
+- 观察结果
+- 更新计划
+- 继续 / 结束
+
+##### 主子 Agent 通信链路设计
+
+###### 主 Agent
+
+- 目标拆解
+- 任务分派
+- 结果校验
+- 最终决策
+
+###### 子 Agent
+
+- 单一任务执行
+- 返回结构化结果
+
+###### 调度层
+
+- 通信 / 状态 / 重试 / 日志 / 权限
+
+###### 共享存储
+
+- 保存上下文、文件、工具结果
+
+##### 能力复用 / Skill 管理
+
+###### 能力分层
+
+- Skill 流程模板
+- Tool 工具调用
+- Prompt 角色和约束
+- Memory 用户记忆和长期偏好
+- Policy 权限和安全
+
+#### Prompt
+
+##### System Prompt（规范）
+
+- 定义角色、边界和安全规则
+- 约束回答风格和可用能力
+- 优先级高于用户输入
+
+##### Few Shot（如样例 BPMN）
+
+- 给模型提供输入 / 输出示例
+- 稳定回答格式
+- 降低理解偏差
+- 适合分类、抽取、JSON 输出、复杂格式任务
+
+##### Chain of Thought（mini 版本 Skill）
+
+- 引导模型分步分析
+- 适合复杂推理、规划、诊断
+- 生产环境不一定展示完整推理
+- 可改为输出简短理由或结构化步骤
 
 ## 问题排查
 
@@ -476,5 +643,5 @@ markmap:
 
 - 统一 Jenkins 与 Dockerfile 使用的 JDK 17 基础镜像，建议使用公司 Harbor 中的固定镜像。
 - 清理或修复 Jenkins 节点的 BuildKit/镜像代理缓存。
-- Docker build或push失败时立即终止流水线，禁止继续部署。
+- Docker build 或 push 失败时立即终止流水线，禁止继续部署。
 - 新镜像推送成功后重新拉取并创建容器，确认镜像 digest 和运行 JAR 为最新版本。

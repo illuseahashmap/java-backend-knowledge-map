@@ -42,14 +42,25 @@ markmap:
 
 ###### 共享模式 tryAcquireShared
 
-- Semaphore
-- CountDownLatch
+- Semaphore：计数信号量，控制并发许可数
+- CountDownLatch：倒计时门闩，等待多个线程完成
 - ReadLock
 
 ###### 独占模式 tryAcquire
 
 - ReentrantLock
 
+### Compare And Swap
+
+#### 保证原子性
+
+##### 基于硬件的原子指令 cmpxchg
+
+###### 锁定总线
+
+###### CPU 禁止中断
+
+###### 硬件实现
 
 ## JVM
 
@@ -597,6 +608,14 @@ markmap:
 
 - 保存上下文、文件、工具结果
 
+###### 子任务挂了返回空怎么办？
+
+- 格式化空结果让主任务能够识别
+- 主任务采用状态机而不是猜
+- 提供重试策略
+- 主任务提供降级子任务
+- 返回结果透明
+
 ##### 能力复用 / Skill 管理
 
 ###### 能力分层
@@ -629,12 +648,113 @@ markmap:
 - 生产环境不一定展示完整推理
 - 可改为输出简短理由或结构化步骤
 
+#### RAG
+
+##### 增量文本 RAG
+
+###### 给文档和 chunk 建立稳定 ID（内容 hash）
+
+- doc / chunk ID
+- hash
+
+###### 文档变化重新分片做 diff
+
+- hash 相同：不变
+- 新 chunk：新增
+- 更新 chunk：更新
+- 删除已删除的 chunk
+
+###### 查询注意版本一致性
+
 #### Skill 过多无法命中
 
-- 修改 description ，说明什么时候调用
+- 修改 description，说明什么时候调用
 - 添加负向样例，说明什么时候不要调用
 - Skill 分层，先找大的，后找小的
 - 召回 + 重排
+
+#### MCP
+
+##### MCP 能不能返回流式
+
+###### 支持 HTTP / SSE 流式传输
+
+- HTTP + SSE 已不受 Codex 支持
+
+###### 支持新版 Streamable HTTP
+
+###### 但标准 tool call 通常返回完整 result
+
+##### MCP 如何保证并发
+
+###### 协议层
+
+- 基于 JSON-RPC 2.0，每个 request 有不同的 id
+
+###### 服务层
+
+- HTTP Server 使用异步框架
+- 每个 request 分配独立 task
+- 工具调用使用线程池
+- 长任务异步
+
+###### Tool 层
+
+- 无共享状态 / 加锁
+
+#### Lang
+
+##### LangChain 组件库：搭建 Agent / 工具调用 / Prompt / 模型调用链
+
+###### RAG 问答
+
+- Retriever
+- PromptTemplate
+- LLM Model
+
+###### 简单工具调用
+
+- Tool
+- OutputParser
+
+###### 文档加载 / 分片
+
+- DocumentLoader
+- TextSplitter
+
+###### 向量库接入
+
+- Embedding Model
+- VectorStore
+
+###### Prompt 编排
+
+- PromptTemplate
+- Chain
+
+###### 简单链式流程
+
+- Chain
+
+##### LangGraph 流程编排框架：构建有状态 / 多步骤 / 可循环 / 可中断的 Agent 工作流
+
+###### 状态 / 节点 / 边 / 条件跳转
+
+###### 循环 / 中断 / 恢复 / checkpoint
+
+###### 多 Agent 协作
+
+#### 验证准确性
+
+##### 构建评测集分层识别
+
+- 意图识别
+- 实体抽取
+- 检索召回
+- 重排
+- 答案
+- 引用
+- 工具调用
 
 ## 问题排查
 

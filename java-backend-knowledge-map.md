@@ -2,7 +2,7 @@
 markmap:
   autoFit: true
   colorFreezeLevel: 4
-  initialExpandLevel: 4
+  initialExpandLevel: 6
   maxWidth: 500
   spacingHorizontal: 90
   spacingVertical: 10
@@ -28,7 +28,7 @@ markmap:
 - 线程异常时，方便移除
 - 忙等时挂起（前驱已经在等待了，挂起当前）
 - 支持从队尾开始判断是否在队列中
-- 减少并发，源码很多从队尾遍历，猜测是减少队头的并发
+- 减少并发，源码很多从==队尾==遍历，猜测是减少队头的并发
 
 ##### Condition 条件队列
 
@@ -61,6 +61,135 @@ markmap:
 ###### CPU 禁止中断
 
 ###### 硬件实现
+
+### CompletableFuture
+
+#### 概念
+
+##### Future
+
+- 未来才会有结果，现在返回 Future
+
+##### result
+
+- Future 里存放的结果
+
+##### CompletableFuture
+
+- 相比 Future，get 结果后还能执行任务
+
+##### Completion
+
+- 后续任务
+
+##### Stack
+
+- 存放后续任务
+
+#### 底层实现
+
+##### result
+
+- volatile
+- null 未完成
+- 正常值
+- AltResult 包装异常 / null / 取消
+
+##### stack
+
+- Completion 依赖栈
+- thenApply / thenAccept 注册回调
+- 上游完成后触发下游
+
+##### CAS
+
+- 原子设置 result
+- 只能完成一次
+- 完成后 postComplete
+
+##### Executor
+
+- Async 提交线程池
+- 默认 ForkJoinPool.commonPool
+- 可自定义 Executor
+- 非 Async 复用完成线程
+
+### ForkJoin - 分而治之
+
+#### 概念
+
+- compute：当前任务具体怎么执行
+- fork：把子任务丢出去异步执行
+- join：等待子任务执行完并拿结果
+
+#### 适用场景
+
+##### 大任务分解为小任务
+
+##### 计算密集型
+
+##### 异构任务并行处理
+
+##### 递归算法并行化
+
+##### 数据聚合任务
+
+#### 优势
+
+##### 可分解
+
+- 天然适合快排
+- 左 fork，右 compute，左 join
+
+##### 并行减少处理时间
+
+##### 可伸缩
+
+- 默认根据CPU核心数初始化
+- 可以手动指定
+- ==managedBlock== 阻塞时会考虑是否增加线程
+
+### 常见对比
+
+#### run / start、wait / sleep、notify / notifyAll区别?
+
+##### start / run
+
+###### start
+
+- 线程的入口
+- 启动后会执行 run 方法
+
+###### run
+
+- 普通方法调用，不会启动新线程
+- 由当前线程同步执行
+
+##### wait / sleep
+
+###### sleep
+
+- 任何地方使用
+- 不会释放锁
+- 针对的是==线程==，所以定义在==Thread==中
+
+###### wait
+
+- 同步方法 / 同步代码块中使用
+- 释放锁
+- 针对的是==对象==，所以定义在==Object==中
+
+##### notify / notifyAll
+
+###### 针对的都是对象，定义在==Object==中
+
+###### notify
+
+- 唤醒一个
+
+###### notifyAll
+
+- 唤醒所有
 
 ## JVM
 
@@ -616,6 +745,15 @@ markmap:
 - 主任务提供降级子任务
 - 返回结果透明
 
+###### 子任务返回错误数据怎么办？
+
+- 子任务返回结构化数据
+- 结构校验
+- 证据校验
+- 业务校验
+- 一致性校验
+- 决策处理
+
 ##### 能力复用 / Skill 管理
 
 ###### 能力分层
@@ -748,13 +886,26 @@ markmap:
 
 ##### 构建评测集分层识别
 
-- 意图识别
-- 实体抽取
-- 检索召回
-- 重排
-- 答案
-- 引用
-- 工具调用
+###### 意图识别
+
+###### 实体抽取
+
+- 人工标注问题里的关键实体
+- 判断是否抽对
+
+###### 检索召回
+
+- 人工标注
+- 系统召回
+- 看目标 chunk 是否在 TopK 里
+
+###### 重排
+
+###### 答案
+
+###### 引用
+
+###### 工具调用
 
 ## 问题排查
 
@@ -772,3 +923,5 @@ markmap:
 - 清理或修复 Jenkins 节点的 BuildKit/镜像代理缓存。
 - Docker build 或 push 失败时立即终止流水线，禁止继续部署。
 - 新镜像推送成功后重新拉取并创建容器，确认镜像 digest 和运行 JAR 为最新版本。
+
+## 场景题

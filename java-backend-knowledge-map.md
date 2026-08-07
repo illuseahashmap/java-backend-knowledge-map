@@ -1,8 +1,8 @@
 ﻿---
 markmap:
-  autoFit: true
+  autoFit: false
   colorFreezeLevel: 4
-  initialExpandLevel: 6
+  initialExpandLevel: 3
   maxWidth: 500
   spacingHorizontal: 90
   spacingVertical: 10
@@ -96,6 +96,44 @@ markmap:
 
 - 循环等待资源
 - 破坏：锁排序，指定获取锁的顺序，ReentrantLock.tryLock()
+
+### ThreadLocal
+
+#### 每个线程保存变量副本，每次只修改自己的副本
+
+#### 应用
+
+- 数据库连接上下文
+- 用户上下文
+- 会话
+
+#### 原理
+
+- 每个线程保存一个 ThreadLocalMap（Entry 数组）
+- key 为 ThreadLocal 对象，value 为变量值
+
+#### 内存泄漏
+
+##### Entry 数组的 key 是弱引用
+
+##### key 回收后 value 仍可能存在
+
+##### 调用 remove() 方法及时回收
+
+### ReentrantLock
+
+#### 可重入锁 / 可公平锁
+
+#### 依赖 AQS 实现，维护一个阻塞队列
+
+#### 缺点：读写互斥时可能阻塞只读线程
+
+##### ReadWriteLock 接口
+
+##### ReentrantReadWriteLock 实现
+
+- 读共享，写独占
+- 原理：把 AQS 的 state 拆分为读计数 / 写计数
 
 ### AbstractQueuedSynchronizer
 
@@ -1176,6 +1214,50 @@ markmap:
 
 - 简单问题交给小模型
 - 复杂问题才使用大模型
+
+#### LLM 生成 SQL
+
+##### 生成过程
+
+###### LLM 生成结构化查询意图
+
+###### LLM 生成 SQL
+
+###### SQL 解析成 AST
+
+- 是否是 SELECT
+- 访问的表是否在白名单
+- 访问的字段是否允许
+- 是否存在 DELETE / DROP
+- 是否有 LIMIT
+- WHERE 条件是否包含 tenant_id
+
+###### 安全规则校验
+
+###### 业务规则校验
+
+###### EXPLAIN / 预检查
+
+###### 只读数据库执行
+
+###### 脱敏返回
+
+##### 三层 RAG
+
+###### DDL / Schema 检索
+
+- 按表为单位
+- 基本信息、枚举信息、索引信息、关联关系
+- 检索部分，返回时补充元数据
+
+###### 业务规则检索
+
+- 一条规则一个 chunk
+- 规则过多时，处理方式与 Skill 类似，进行分层检索
+
+###### Few-shot 示例
+
+- 问题 + SQL + 解释为一个完整样例
 
 ## 问题排查
 

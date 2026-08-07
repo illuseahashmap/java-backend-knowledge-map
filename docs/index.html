@@ -142,19 +142,17 @@
       const { root, frontmatter } = transformer.transform(rawMarkdown);
 
       const options = markmap.deriveOptions({
-        autoFit: true,
-        colorFreezeLevel: 2,
+        autoFit: false,
+        colorFreezeLevel: 4,
         color: ['#2563eb', '#16a34a', '#ea580c', '#7c3aed', '#0891b2', '#dc2626'],
         duration: 260,
-        initialExpandLevel: 4,
+        initialExpandLevel: 3,
         maxWidth: 360,
         paddingX: 12,
         spacingHorizontal: 90,
         spacingVertical: 10,
         ...(frontmatter?.markmap || {})
       });
-      options.autoFit = true;
-
       const mindmap = markmap.Markmap.create(document.querySelector('#mindmap'), options);
 
       await mindmap.setData(root);

@@ -1259,6 +1259,114 @@ markmap:
 
 - 问题 + SQL + 解释为一个完整样例
 
+#### 评估 Agent 效果
+
+##### 组件评估
+
+- 意图识别：Accuracy / F1
+- 召回：Recall@K
+- 重排：MRR / nDCG
+- 工具选择：Tool Accuracy
+- 参数生成：Schema Accuracy
+- 结构化输出：JSON Valid Rate
+
+##### 链路评估
+
+- 问题
+- 意图识别
+- RAG 检索
+- 工具调用
+- 结果组装
+- 最终回答
+
+##### 端到端任务评估
+
+###### 有真实用户
+
+- 用户目标是否真正完成
+
+###### 无真实用户
+
+- 构造评测集
+- 运行 Agent
+- 记录完整轨迹
+- 自动计算指标
+- 抽检异常案例
+- 分析失败原因
+- 修改 Prompt、RAG、Skill 或工具
+- 重新评测
+
+###### 关键指标
+
+- 任务成功率
+- 答案准确率
+- 引用是否真正支持答案
+- 正确知识是否出现在前 K 个召回结果中
+- 工具选择准确率
+- 工具参数准确率
+- 结构化输出可解析比例
+- 无依据结论比例
+- 证据不足时正确拒答比例
+- P95 延迟
+- 单任务成本
+
+#### 定位 Agent 问题
+
+##### 给每次请求建立 Trace
+
+- 意图识别
+- RAG 召回
+- Reranker
+- 上下文组装
+- 模型生成
+- Tool 调用
+- 最终回答
+
+##### 每个阶段记录 Span
+
+```text
+Trace t-001
++-- intent_detection     80ms   SUCCESS
++-- retrieval            220ms  SUCCESS
+|   +-- vector_recall    100ms
+|   +-- bm25_recall      50ms
+|   +-- reranker         70ms
++-- context_assembly     30ms   SUCCESS
++-- llm_generation       900ms  SUCCESS
++-- tool_call            300ms  FAILED
+```
+
+##### 保留中间产物
+
+- 意图识别结果
+- 实体提取结果
+- 召回文档 ID 和分数
+- Reranker 分数
+- 最终注入模型的上下文
+- 模型输出
+- 工具名和参数
+- 工具返回结果
+- 最终答案和引用
+
+##### 每一步使用结构化状态
+
+- `SUCCESS`：继续
+- `EMPTY`：扩大召回或换检索方式
+- `TIMEOUT`：重试或降级
+- `SCHEMA_ERROR`：修复输出
+- `PERMISSION_DENIED`：直接拒绝
+
+##### 可重放机制
+
+- 问题
+- Prompt 版本
+- 模型版本
+- Skill 版本
+- 检索结果
+- 工具参数
+- 工具结果
+- 配置版本
+
 ## 问题排查
 
 ### 问题记录

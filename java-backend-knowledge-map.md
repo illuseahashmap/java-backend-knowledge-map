@@ -97,6 +97,83 @@ markmap:
 - 循环等待资源
 - 破坏：锁排序，指定获取锁的顺序，ReentrantLock.tryLock()
 
+### 线程池
+
+#### execute 和 submit 的区别
+
+- `execute`：提交不需要返回的任务，无法判断是否成功
+- `submit`：提交需要返回值的任务，返回 `Future` 对象
+
+#### 核心参数
+
+##### 核心线程大小 `corePoolSize`
+
+- 线程池运行，核心线程不停止
+
+##### 最大线程数量 `maximumPoolSize`
+
+- 非核心 + 核心
+- CPU 密集型：线程数约等于 CPU 核心数
+- IO 密集型：线程数约等于 `CPU 核心数 / (1 - 阻塞系数)`
+
+##### 非核心线程的心跳时间 `keepAliveTime`
+
+##### 阻塞队列 `workQueue`
+
+###### newCachedThreadPool
+
+- `SynchronousQueue`：直接转发队列，无限线程
+- 线程数量无限制
+- 需要控制数量避免 OOM
+
+###### newFixedThreadPool
+
+- `LinkedBlockingQueue`：无界队列
+- 提交任务创建线程
+- 达到最大数量，任务存入队列
+
+###### newSingleThreadExecutor
+
+- `LinkedBlockingQueue`：无界队列
+- 单线程的 `Executor`
+- FIFO
+
+###### newScheduleThreadPool
+
+- `DelayedWorkQueue`：延时队列
+- 定长，核心线程数量固定
+- 定时
+- 周期
+
+##### 饱和策略 `defaultHandler`
+
+- `AbortPolicy`：丢弃并直接报错，默认策略
+- `DiscardPolicy`：丢弃但不报错
+- `DiscardOldestPolicy`：丢弃队列首部任务
+- `CallerRunsPolicy`：在线程池外直接调用 `run` 执行
+
+##### 线程工厂 `threadFactory`
+
+#### 怎么复用线程的
+
+##### ThreadPoolExecutor
+
+###### 内置对象 Worker
+
+- while 死循环从对象中拉取数据
+- 置换 `Worker` 中的 `Runnable` 对象
+- 运行 `run` 方法
+
+#### Executor 和 Executors 的区别
+
+##### Executor
+
+- 接口，ExecutorService 继承并扩展，获取任务状态 / 返回值
+
+##### Executors
+
+- 工具类，创建线程池
+
 ### ThreadLocal
 
 #### 每个线程保存变量副本，每次只修改自己的副本

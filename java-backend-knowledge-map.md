@@ -791,6 +791,43 @@ markmap:
 
 ### 主从同步 / 读写分离
 
+#### Binary log / Relay log
+
+##### Binary log
+
+- 主数据库的二进制日志
+- update -> binlog cache -> 准备提交 -> cache 刷盘 -> 提交完成
+
+##### Relay log
+
+- 从服务器的中继日志
+
+##### 格式
+
+- `STATEMENT`：记录 SQL 语句
+- `ROW`：记录具体行的前后变化
+- `MIXED`：由 MySQL 根据情况选择 `STATEMENT` 或 `ROW`
+
+#### 主从同步过程
+
+##### 主库执行事务
+
+- 主库将变更记录为 Binlog Event
+- 事务提交时，将事务事件写入 Binlog
+
+##### 从库接收日志
+
+- 从库 I/O 线程连接主库
+- 拉取主库 Binlog Event
+- 将事件写入从库 Relay Log
+
+##### 从库应用日志
+
+- 从库 Applier 线程读取 Relay Log
+- 解析 Binlog Event
+- 根据 `STATEMENT` 或 `ROW` 格式执行变更
+- 更新已执行位置或 GTID
+
 ## Redis
 
 ## 消息队列
@@ -1331,7 +1368,10 @@ markmap:
 
 ###### 共享存储
 
-- 保存上下文、文件、工具结果
+- 保存任务上下文、文件与中间产物、工具结果、任务状态、Agent 通信消息、检索证据和引用
+- 按 `task_id`、`tenant_id` 隔离数据
+- 大文件只传 `artifact_id`，不直接复制内容
+- Redis 保存短期状态，数据库保存任务记录，对象存储保存文件
 
 ###### 子任务挂了返回空怎么办？
 

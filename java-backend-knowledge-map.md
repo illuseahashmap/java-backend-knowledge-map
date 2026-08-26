@@ -25,9 +25,21 @@ markmap:
 - 降低对象之间的耦合
 - 对象依赖由容器提供，不再由对象自行创建或查找
 
-#### 面向切面编程
+#### 面向切面编程 AOP
 
-- 将业务逻辑和系统级服务分离
+##### 将业务逻辑和系统级服务分离
+
+##### 实现方式
+
+###### 静态代理
+
+- 使用 AOP 框架提供的命令进行编译
+- 在编译阶段就可生成 AOP 代理类
+
+###### 动态代理
+
+- JDK 动态代理：通过==反射==来接收被代理的类，并且要求被代理的类必须实现一个接口，核心是 `InvocationHandler` 接口和 `Proxy` 类
+- CGLIB 动态代理：通过==继承==的方式做动态代理，如果某个类被标记为 `final`，那么它无法使用 CGLIB 做动态代理
 
 #### 容器
 
@@ -45,6 +57,38 @@ markmap:
 #### 异常处理
 
 - 提供 API 将具体异常转换为统一的 unchecked 异常
+
+#### 设计模式
+
+##### 工厂
+
+- 通过 `BeanFactory`、`ApplicationContext` 创建 Bean 对象
+
+##### 代理
+
+- AOP
+
+##### 单例
+
+- Bean 默认单例
+
+##### 模板方法
+
+- `JdbcTemplate`
+- `HibernateTemplate`
+
+##### 包装器
+
+- 切换数据源
+
+##### 观察者
+
+- 事件驱动模型
+
+##### 适配器模式
+
+- AOP 增强或通知
+- MVC
 
 ### IOC / DI
 
@@ -135,16 +179,196 @@ markmap:
 
 #### 创建
 
-##### 实例化 Bean 对象，设置 Bean 属性
+##### 实例化 Bean
 
-##### 检查 Aware 接口，设置依赖信息
+- 根据 BeanDefinition 创建 Bean 对象
+- 调用构造方法或工厂方法
+
+##### 设置 Bean 属性
+
+- 注入依赖对象
+- 设置普通属性
+- 处理 `@Autowired`、`@Resource` 等注入注解
+
+##### Aware 接口回调
 
 - `BeanNameAware`
+  - 获取当前 Bean 的名称
 - `BeanFactoryAware`
+  - 获取 BeanFactory
 - `BeanClassLoaderAware`
-- todo0825 待补充
+  - 获取类加载器
+- `ApplicationContextAware`
+  - 获取 ApplicationContext
+- `EnvironmentAware`
+  - 获取环境配置
+- `ApplicationEventPublisherAware`
+  - 获取事件发布器
+
+##### BeanPostProcessor 前置处理
+
+- 执行 `postProcessBeforeInitialization()`
+- 可以修改 Bean
+- 可以进行初始化前的检查和处理
+
+##### 初始化
+
+###### `@PostConstruct`
+
+- 执行标注了 `@PostConstruct` 的方法
+- 常用于初始化资源和校验参数
+
+###### `InitializingBean`
+
+- 调用 `afterPropertiesSet()`
+
+###### 自定义初始化方法
+
+- 调用配置中指定的 `init-method`
+
+##### BeanPostProcessor 后置处理
+
+- 执行 `postProcessAfterInitialization()`
+- Spring AOP 通常在这里创建代理对象
+
+##### 放入容器
+
+- 单例 Bean 放入单例缓存池
+- 后续通过 Spring 容器获取 Bean
+
+#### 使用
+
+- Bean 正常提供服务
+- 默认情况下，单例 Bean 在容器中只有一个实例
 
 #### 销毁
+
+##### 容器关闭
+
+- Spring 容器关闭时，触发单例 Bean 的销毁流程
+
+##### `@PreDestroy`
+
+- 执行标注了 `@PreDestroy` 的方法
+- 常用于释放资源
+
+##### `DisposableBean`
+
+- 调用 `destroy()` 方法
+
+##### 自定义销毁方法
+
+- 调用配置中指定的 `destroy-method`
+- 常用于关闭连接、线程池、文件流等资源
+
+### 循环依赖问题
+
+#### 场景
+
+- A 依赖 B，B 依赖 A
+
+#### 解决方式
+
+- 通过三级缓存实现
+
+#### 处理流程
+
+##### 创建 Bean A
+
+- Spring 实例化 Bean A
+- Bean A 的属性还没有注入完成
+- 将 Bean A 的早期引用工厂放入三级缓存
+
+##### 创建 Bean B
+
+- Bean B 依赖 Bean A
+- Spring 从一级缓存中找不到 Bean A
+- 从二级缓存中也找不到 Bean A
+- 从三级缓存中获取 Bean A 的早期引用
+
+##### 暴露 Bean A
+
+- 三级缓存中的工厂生成 Bean A 的早期引用
+- 如果存在 AOP，则生成 Bean A 的代理对象
+- 将 Bean A 的早期引用放入二级缓存
+- 删除三级缓存中的 Bean A 工厂
+
+##### 完成 Bean B
+
+- 将 Bean A 的早期引用注入 Bean B
+- Bean B 完成初始化
+- 将 Bean B 放入一级缓存
+
+##### 完成 Bean A
+
+- Bean A 完成属性注入和初始化
+- 将 Bean A 放入一级缓存
+- 删除二级缓存中的早期引用
+
+### 事务传播规则
+
+#### `PROPAGATION_REQUIRED`
+
+- 支持当前事务
+- 如果当前存在事务，则加入当前事务
+- 如果当前不存在事务，则新建事务
+- Spring 默认的传播行为
+- 最常用
+
+#### `PROPAGATION_SUPPORTS`
+
+- 支持当前事务
+- 如果当前存在事务，则加入当前事务
+- 如果当前不存在事务，则以非事务方式执行
+
+#### `PROPAGATION_MANDATORY`
+
+- 强制要求当前存在事务
+- 如果当前存在事务，则加入当前事务
+- 如果当前不存在事务，则抛出异常
+
+#### `PROPAGATION_REQUIRES_NEW`
+
+- 总是创建一个新事务
+- 如果当前存在事务，则挂起当前事务
+- 新事务执行完成后，恢复原来的事务
+- 新事务与原事务相互独立
+
+#### `PROPAGATION_NOT_SUPPORTED`
+
+- 不支持事务
+- 如果当前存在事务，则挂起当前事务
+- 当前方法以非事务方式执行
+- 方法执行完成后，恢复原来的事务
+
+#### `PROPAGATION_NEVER`
+
+- 不允许在事务中执行
+- 如果当前存在事务，则抛出异常
+- 如果当前不存在事务，则正常执行
+
+#### `PROPAGATION_NESTED`
+
+- 如果当前存在事务，则创建保存点
+- 嵌套事务回滚时，只回滚到保存点
+- 不会直接回滚外层事务
+- 如果外层事务最终回滚，嵌套事务也会回滚
+- 如果当前不存在事务，则创建新事务
+- 通常依赖数据库保存点实现
+
+### MVC 工作原理
+
+- 客户端发送请求，请求到达 `DispatcherServlet`
+- `DispatcherServlet` 调用 `HandlerMapping`
+- `HandlerMapping` 根据请求路径找到对应的 `Handler`
+- `DispatcherServlet` 调用 `HandlerAdapter`
+- `HandlerAdapter` 执行对应的 Controller 方法
+- Controller 处理业务逻辑并返回 `ModelAndView`
+- `DispatcherServlet` 调用 `ViewResolver`
+- `ViewResolver` 根据视图名称查找实际的 `View`
+- `View` 使用 `Model` 中的数据进行渲染
+- `DispatcherServlet` 将渲染后的结果返回给客户端
+
 ## 并发
 
 ### 进程和线程

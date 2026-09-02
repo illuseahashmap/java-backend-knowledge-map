@@ -818,6 +818,465 @@ markmap:
 - 记忆原则：Producer Extends，Consumer Super
 - Java 泛型通过类型擦除实现
 
+### 集合 Collection
+
+#### List
+
+- 有序
+- 允许重复元素
+- 允许使用索引访问
+- 常见实现：`ArrayList`、`LinkedList`、`Vector`
+
+##### ArrayList
+
+- 底层使用动态数组
+- 查询速度快，时间复杂度接近 `O(1)`
+- 中间插入和删除速度较慢
+- 允许存储 `null`
+- 线程不安全
+
+###### 扩容机制
+
+- 默认初始容量通常为 `10`
+- 容量不足时自动扩容
+- 新容量通常为原容量的 `1.5` 倍
+- 扩容时需要创建新数组并复制原数据
+- 可以通过构造方法指定初始容量
+
+##### LinkedList
+
+- 底层使用双向链表
+- 查询速度较慢
+- 头部和尾部插入、删除速度较快
+- 同时实现了 `List` 和 `Deque`
+- 允许存储 `null`
+- 线程不安全
+
+##### Vector
+
+- 底层使用动态数组
+- 方法使用 `synchronized` 修饰
+- 线程安全
+- 并发性能较低
+- 扩容时默认扩大为原容量的 `2` 倍
+- 现在通常使用 `ArrayList` 替代
+
+#### Queue
+
+- 队列通常遵循先进先出
+- 常用于任务排队和消息处理
+- 常见实现：`LinkedList`、`PriorityQueue`、`ArrayDeque`
+
+##### Deque
+
+- 双端队列
+- 可以从队头和队尾插入、删除元素
+- 可以作为队列使用
+- 可以作为栈使用
+- 常用实现：`ArrayDeque`、`LinkedList`
+
+##### PriorityQueue
+
+- 优先级队列
+- 底层使用堆结构
+- 默认是小根堆
+- 队头元素是优先级最高的元素
+- 不保证遍历结果完全有序
+- 不允许存储 `null`
+- 线程不安全
+
+#### Set
+
+- 元素唯一
+- 通常不允许重复元素
+- 是否有序取决于具体实现
+
+##### HashSet
+
+- 底层基于 `HashMap`
+- 元素作为 `HashMap` 的 Key
+- 使用固定的占位对象作为 Value
+- 查询、添加和删除平均时间复杂度接近 `O(1)`
+- 无序
+- 允许存储一个 `null`
+- 线程不安全
+
+###### LinkedHashSet
+
+- 继承自 `HashSet`
+- 底层基于 `LinkedHashMap`
+- 通过双向链表维护插入顺序
+- 元素唯一
+- 查询、添加和删除平均时间复杂度接近 `O(1)`
+- 允许存储一个 `null`
+
+##### SortedSet
+
+- 有序集合接口
+- 元素会按照自然顺序或比较器排序
+- 常见实现是 `TreeSet`
+
+###### TreeSet
+
+- 底层基于 `TreeMap`
+- 底层使用红黑树
+- 元素唯一
+- 默认按照自然顺序排序
+- 可以通过 `Comparator` 自定义排序
+- 增删改查时间复杂度接近 `O(logN)`
+- 不允许存储 `null`，除非比较器支持
+
+##### EnumSet
+
+- 专门用于存储枚举类型
+- 底层通常使用位向量实现
+- 性能高，内存占用少
+- 元素唯一
+- 按枚举定义顺序遍历
+- 不允许存储 `null`
+
+#### Map
+
+- 保存键值对
+- Key 不能重复
+- Value 可以重复
+- 一个 Key 最多对应一个 Value
+- 常见实现：`HashMap`、`LinkedHashMap`、`TreeMap`、`Hashtable`
+
+##### HashMap
+
+- 底层使用数组、链表和红黑树
+- Key 允许一个 `null`
+- Value 允许多个 `null`
+- 线程不安全
+- 查询、添加和删除平均时间复杂度接近 `O(1)`
+
+###### 底层数据结构
+
+- 数组：保存哈希桶
+- 链表：解决哈希冲突
+- 红黑树：优化过长链表的查询效率
+- Java 8 以后，链表长度较长时可能转换为红黑树
+
+###### 解决 Hash 冲突
+
+- 不同 Key 计算出相同的数组下标时会产生哈希冲突
+- HashMap 使用链表或红黑树保存冲突元素
+- 先比较哈希值
+- 哈希值相同时再使用 `equals()` 比较 Key
+- `equals()` 相等时覆盖原 Value
+- `equals()` 不相等时保存为新的节点
+
+###### `put` 流程
+
+- 计算 Key 的 `hashCode`
+- 对哈希值进行扰动处理
+- 根据哈希值计算数组下标
+- 如果桶为空，直接创建节点
+- 如果桶不为空，比较 Key 是否相同
+- Key 相同则覆盖原 Value
+- Key 不同则插入链表或红黑树
+- 插入后判断是否需要扩容
+- 链表过长时可能转换为红黑树
+
+###### 扩容方式
+
+- 默认初始容量通常为 `16`
+- 默认负载因子为 `0.75`
+- 扩容阈值等于容量乘以负载因子
+- 超过阈值后扩容
+- 新容量通常为原容量的 `2` 倍
+- 扩容后需要重新分配节点位置
+- Java 8 中扩容时节点通常只在原位置或原位置加旧容量的位置移动
+
+###### 链表树化
+
+- 链表长度达到 `8` 时尝试树化
+- 数组容量小于 `64` 时优先扩容
+- 数组容量达到 `64` 后，链表才可能转换为红黑树
+- 红黑树节点数量较少时可能退化为链表
+
+##### LinkedHashMap
+
+- 继承自 `HashMap`
+- 底层使用数组、链表、红黑树和双向链表
+- 可以维护插入顺序
+- 也可以维护访问顺序
+- 允许一个 `null` Key 和多个 `null` Value
+- 可以用于实现简单的 LRU 缓存
+
+##### ConcurrentHashMap
+
+- 线程安全的 Map
+- 适合高并发读写场景
+- 不允许 `null` Key 和 `null` Value
+- 通过分段或桶级别的锁减少并发冲突
+- 相比 `Hashtable`，并发性能更高
+
+###### JDK 1.7 底层结构
+
+- `Segment[]` 数组
+- 每个 `Segment` 内部维护一个 `HashEntry[]` 数组
+- `Segment` 继承自 `ReentrantLock`
+- 每个 Segment 是一个独立的锁
+- 不同 Segment 可以同时执行写操作
+- 同一个 Segment 内的写操作需要竞争锁
+
+###### JDK 1.7 结构
+
+- ConcurrentHashMap
+  - `Segment[]`
+    - `Segment`
+      - `HashEntry[]`
+        - `HashEntry`
+        - `HashEntry`
+        - `HashEntry`
+
+###### JDK 1.7 并发特点
+
+- 将整个 Map 划分成多个 Segment
+- 每个 Segment 管理一部分数据
+- 写入不同 Segment 时可以并发执行
+- 写入同一个 Segment 时需要加锁
+- 默认最多支持多个 Segment 并发写入
+- 读取通常不需要加锁
+
+###### JDK 8 底层结构
+
+- 底层结构与 `HashMap` 类似
+- 数组、链表和红黑树
+- 数组类型为 `Node<K,V>[]`
+- 链表节点类型为 `Node<K,V>`
+- 红黑树节点类型为 `TreeBin`
+- 红黑树中的节点类型为 `TreeNode`
+- 使用 CAS 和 `synchronized` 保证并发安全
+
+###### JDK 8 加锁粒度
+
+- JDK 7 主要锁定 Segment
+- JDK 8 不再使用 Segment
+- JDK 8 主要锁定发生冲突的桶
+- 不同桶可以同时执行写操作
+- 锁的粒度比 JDK 7 更细
+- 读取通常不需要加锁
+
+###### JDK 8 `put` 流程
+
+- 计算 Key 的哈希值
+- 对哈希值进行扰动处理
+- 根据哈希值计算数组下标
+- 判断数组是否初始化
+- 未初始化时，使用 CAS 初始化数组
+- 判断当前桶是否为空
+- 桶为空时，使用 CAS 放入新节点
+- 桶不为空时，锁定当前桶
+- 判断桶首节点是否正在扩容
+- 如果正在扩容，则协助数据迁移
+- 如果是链表，则遍历链表
+- Key 相同则更新 Value
+- Key 不同则追加新节点
+- 如果是红黑树，则按照红黑树规则插入
+- 链表长度达到树化条件时转换为红黑树
+- 更新元素数量
+- 达到扩容阈值时触发扩容
+
+###### JDK 8 `put` 的 CAS 和锁
+
+- CAS 主要用于：
+  - 初始化数组
+  - 向空桶写入第一个节点
+  - 更新部分控制变量
+- `synchronized` 主要用于：
+  - 锁定非空桶
+  - 修改桶中的链表
+  - 修改桶中的红黑树
+- CAS 失败后不代表整个 Map 被锁住
+- 通常只需要竞争当前桶
+
+###### JDK 8 `get` 流程
+
+- 计算 Key 的哈希值
+- 根据哈希值计算数组下标
+- 读取对应桶
+- 桶为空时返回 `null`
+- 桶首节点 Key 匹配时直接返回 Value
+- 桶是链表时遍历链表
+- 桶是红黑树时按照红黑树规则查找
+- 找到 Key 后返回 Value
+- 找不到 Key 时返回 `null`
+
+###### 为什么 `get` 通常不加锁
+
+- Node 的 `hash` 和 `key` 通常不可变
+- Node 的 `val` 使用 `volatile` 修饰
+- Node 的 `next` 使用 `volatile` 修饰
+- `volatile` 保证读取线程能够看到最新值
+- 读操作不会修改链表或红黑树结构
+- 因此读取通常不需要加锁
+
+###### `volatile` 的作用
+
+- 保证 Value 的可见性
+- 保证链表 next 指针的可见性
+- 防止读取线程使用过期数据
+- 不能单独保证复合操作的原子性
+- 复合修改操作仍需要 CAS 或锁
+
+###### JDK 8 扩容
+
+- 扩容时创建容量更大的数组
+- 原数组容量通常扩大为原来的 `2` 倍
+- 多个线程可以协助扩容
+- 正在扩容的桶会被标记
+- 其他线程访问该桶时可以协助迁移数据
+- 链表节点根据哈希值拆分到新数组的两个位置
+- 红黑树节点也会参与数据迁移
+- 数据迁移完成后更新新数组中的桶
+
+###### 扩容中的特殊节点
+
+- 扩容过程中会使用 `ForwardingNode`
+- `ForwardingNode` 表示当前桶的数据已经迁移
+- 其他线程访问到该节点时，会到新数组中查找
+- 其他线程也可以协助完成扩容
+- 扩容完成后，旧数组逐渐被新数组替代
+
+###### 计数方式
+
+- JDK 8 不使用单一锁保护元素数量
+- 低并发时使用 `baseCount`
+- 高并发更新时使用 `CounterCell[]`
+- 不同线程可以更新不同的 CounterCell
+- 最终统计各个 CounterCell 的值
+- 减少多个线程更新同一个计数变量的竞争
+
+###### 与 HashMap 的区别
+
+- `HashMap` 线程不安全
+- `ConcurrentHashMap` 线程安全
+- `HashMap` 允许 `null` Key 和 `null` Value
+- `ConcurrentHashMap` 不允许 `null` Key 和 `null` Value
+- `HashMap` 写操作可能导致数据结构异常
+- `ConcurrentHashMap` 使用 CAS 和锁保证并发安全
+
+###### 与 Hashtable 的区别
+
+- `Hashtable` 的方法通常使用 `synchronized`
+- `Hashtable` 锁的粒度较大
+- 高并发下多个操作容易相互阻塞
+- `ConcurrentHashMap` 使用更细粒度的桶级别控制
+- `ConcurrentHashMap` 读操作通常不加锁
+- `ConcurrentHashMap` 并发性能通常高于 `Hashtable`
+- 两者都不允许 `null` Key 和 `null` Value
+
+###### 弱一致性
+
+- 遍历期间允许其他线程执行修改
+- 迭代器不会抛出 `ConcurrentModificationException`
+- 遍历结果不一定反映某一时刻的完整快照
+- 可能读取到修改前或修改后的部分数据
+- 适合并发场景下的弱一致性遍历
+- 不适合依赖遍历结果进行严格业务判断
+
+###### 常见复合操作
+
+- `putIfAbsent()`
+  - Key 不存在时才写入
+- `computeIfAbsent()`
+  - Key 不存在时计算并写入 Value
+- `computeIfPresent()`
+  - Key 存在时重新计算 Value
+- `merge()`
+  - 根据旧值和新值合并数据
+- 这些方法可以保证单次复合操作的原子性
+- 多个独立操作组合在一起时，仍需要额外控制
+
+###### 注意事项
+
+- 不要使用 `null` 表示特殊业务状态
+- 不要依赖遍历结果作为精确快照
+- 不要把多个 Map 操作简单组合后认为整体原子
+- 需要复合更新时，优先使用 `putIfAbsent()`、`compute()` 或 `merge()`
+- 需要严格一致性时，应使用额外锁或事务控制
+
+###### 总结
+
+- JDK 1.7：`Segment` 分段锁
+- JDK 8：数组、链表、红黑树、CAS 和 `synchronized`
+- JDK 7 锁的是 Segment
+- JDK 8 主要锁的是发生冲突的桶
+- 空桶写入主要依靠 CAS
+- 非空桶修改主要依靠 `synchronized`
+- `get` 通常不加锁，依靠 `volatile` 保证可见性
+- 扩容时多个线程可以协助迁移
+- ConcurrentHashMap 只保证单次操作的线程安全
+- 多个操作组合时仍需考虑原子性
+
+##### Hashtable
+
+- 线程安全的哈希表
+- 方法使用 `synchronized` 修饰
+- 不允许 `null` Key
+- 不允许 `null` Value
+- 并发性能低于 `ConcurrentHashMap`
+- 现在通常使用 `ConcurrentHashMap` 替代
+
+###### Properties
+
+- `Hashtable` 的子类
+- 主要用于保存配置项
+- Key 和 Value 通常都是字符串
+- 支持从文件读取和写入配置
+- 常用于 `.properties` 配置文件
+
+##### SortedMap
+
+- 有序 Map 接口
+- 按照 Key 的自然顺序或比较器排序
+- 常见实现是 `TreeMap`
+
+###### TreeMap
+
+- 底层使用红黑树
+- Key 唯一
+- 按照 Key 排序
+- 支持自然排序和自定义排序
+- 增删改查时间复杂度接近 `O(logN)`
+- 不允许存储 `null` Key，除非比较器支持
+- Value 可以为 `null`
+- 线程不安全
+
+#### 常见集合对比
+
+##### ArrayList 和 LinkedList
+
+- 随机访问多：使用 `ArrayList`
+- 频繁头尾插入和删除：可以使用 `LinkedList`
+- 实际开发中通常优先考虑 `ArrayList`
+- `LinkedList` 的节点对象会产生额外内存开销
+
+##### HashMap 和 TreeMap
+
+- 需要快速查找：使用 `HashMap`
+- 需要按照 Key 排序：使用 `TreeMap`
+- `HashMap` 平均复杂度接近 `O(1)`
+- `TreeMap` 操作复杂度接近 `O(logN)`
+
+##### HashSet 和 TreeSet
+
+- 只要求元素唯一：使用 `HashSet`
+- 要求元素有序：使用 `TreeSet`
+- `HashSet` 平均操作复杂度接近 `O(1)`
+- `TreeSet` 操作复杂度接近 `O(logN)`
+
+##### HashMap 和 ConcurrentHashMap
+
+- 单线程环境：使用 `HashMap`
+- 多线程环境：使用 `ConcurrentHashMap`
+- `HashMap` 不保证线程安全
+- `ConcurrentHashMap` 支持并发读写
+- `ConcurrentHashMap` 不允许 `null` Key 和 `null` Value
+
 ## Spring
 
 ### Spring 的好处

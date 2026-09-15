@@ -1642,6 +1642,57 @@ markmap:
 
 ## Spring Cloud
 
+### 什么是 Spring Cloud
+
+#### 面试回答
+
+- Spring Cloud 是基于 Spring Boot 的微服务开发工具集
+- 提供服务注册、配置管理、服务调用、负载均衡、熔断限流和网关等能力
+- 用于快速构建和治理微服务系统
+
+#### 常见组件
+
+- Nacos、Eureka：服务注册与发现
+- Nacos、Config：配置中心
+- OpenFeign：声明式服务调用
+- LoadBalancer：客户端负载均衡
+- Sentinel：限流、熔断和降级
+- Gateway：API 网关
+- Sleuth、Zipkin：链路追踪
+
+### Spring Cloud 服务间通信方式
+
+#### RESTful
+
+- 基于 HTTP 协议进行服务调用
+- 使用简单，适合跨语言和对外接口
+- 性能相对一般
+
+#### OpenFeign
+
+- 声明式 HTTP 客户端
+- 通过接口和注解调用其他服务
+- 底层本质上仍是 RESTful 通信
+
+#### Gateway
+
+- 通过网关统一转发请求
+- 适合客户端到服务端的通信
+- 提供路由、鉴权、限流和转发能力
+- 不属于服务间通信协议
+
+#### RPC
+
+- 通过 Dubbo、gRPC 等进行远程调用
+- 基于长连接或二进制协议
+- 性能较高，适合内部服务调用
+
+#### Stream
+
+- 基于消息队列进行异步通信
+- 通过 Spring Cloud Stream 屏蔽不同 MQ 的差异
+- 适合解耦、削峰和异步处理
+
 ### Dubbo 和 Feign 区别
 
 #### 面试回答
@@ -1759,6 +1810,114 @@ markmap:
 - Zookeeper：分布式协调，CP，一致性优先
 - 对服务发现可用性要求高：Eureka
 - 对数据一致性和协调能力要求高：Zookeeper
+
+### Hystrix 和 Sentinel 的区别
+
+#### 面试回答
+
+- Hystrix 主要解决服务调用的线程隔离、熔断和降级
+- Sentinel 主要解决流量控制、熔断降级和系统自适应保护
+- Hystrix 已停止维护，新项目通常选择 Sentinel
+
+#### 核心区别
+
+##### 隔离策略
+
+- Hystrix：线程池隔离、信号量隔离
+- Sentinel：主要使用信号量隔离，开销更小
+
+##### 熔断降级
+
+- Hystrix：主要根据失败率触发熔断
+- Sentinel：支持慢调用比例、异常比例和异常数
+
+##### 限流能力
+
+- Hystrix：主要限制并发量，限流能力有限
+- Sentinel：支持 QPS、并发线程数、热点参数和链路限流
+
+##### 流量控制
+
+- Hystrix：不支持复杂流量整形
+- Sentinel：支持预热、匀速排队和系统自适应保护
+
+##### 控制台
+
+- Hystrix：主要查看监控指标
+- Sentinel：支持规则配置、实时监控和动态调整
+
+#### 选型建议
+
+- 老项目已经使用 Hystrix：继续维护即可
+- 新项目：优先选择 Sentinel
+- 需要线程池隔离：重点考虑 Hystrix
+- 需要限流和系统保护：选择 Sentinel
+
+### LoadBalancer 和 Ribbon 的区别
+
+#### 面试回答
+
+- Ribbon 是 Netflix 提供的客户端负载均衡组件
+- Spring Cloud LoadBalancer 是 Spring 官方提供的替代方案
+- Ribbon 已停止维护，新项目通常使用 LoadBalancer
+
+#### 核心区别
+
+##### 所属生态
+
+- Ribbon：Netflix
+- LoadBalancer：Spring Cloud
+
+##### 负载均衡方式
+
+- Ribbon：客户端负载均衡
+- LoadBalancer：客户端负载均衡
+
+##### 支持情况
+
+- Ribbon：主要用于传统 Spring Cloud Netflix
+- LoadBalancer：支持 Spring Cloud 新版本
+
+##### 选型
+
+- 老项目：Ribbon
+- 新项目：Spring Cloud LoadBalancer
+
+### Spring Cloud 和 Dubbo 的区别
+
+#### 面试回答
+
+- Spring Cloud 是一套微服务解决方案，功能更全面
+- Dubbo 是 RPC 服务框架，重点是高性能服务调用
+- Spring Cloud 偏 HTTP 和生态集成
+- Dubbo 偏 RPC 和服务治理
+
+#### 核心区别
+
+##### 服务调用
+
+- Spring Cloud：通常使用 HTTP/REST
+- Dubbo：使用 RPC 协议，性能更高
+
+##### 服务治理
+
+- Spring Cloud：组件较多，包含注册、配置、熔断、网关等
+- Dubbo：重点提供服务注册、发现、调用和治理
+
+##### 通信方式
+
+- Spring Cloud：接口通常基于 HTTP
+- Dubbo：基于长连接和二进制协议
+
+##### 生态
+
+- Spring Cloud：与 Spring Boot、Spring 生态集成更好
+- Dubbo：与阿里生态和 Java 服务体系集成较好
+
+##### 适用场景
+
+- Spring Cloud：异构系统、REST 接口、完整微服务架构
+- Dubbo：Java 内部服务、高性能和低延迟 RPC 调用
 
 ## 并发
 

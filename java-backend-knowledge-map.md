@@ -3239,41 +3239,61 @@ markmap:
 
 #### String
 
-- 底层实现
-  - `int`：整数值
-  - `embstr`：短字符串
-  - `raw`：较长字符串
+##### 底层实现
+
+- `int`：整数值
+- `embstr`：短字符串
+- `raw`：较长字符串
+
+##### 常用场景
+
 - 缓存
 - 常规计数
 
 #### Hash
 
-- 底层实现：
-  - 数据量较小时：`listpack`
-  - 数据量较大时：`hashtable`
+##### 底层实现
+
+- 数据量较小时：`listpack`
+- 数据量较大时：`hashtable`
+
+##### 常用场景
+
 - String 类型的 field 和 value 的映射表
 
 #### Set
 
-- 底层实现：
-  - 元素都是整数且数量较少：`intset`
-  - 其他情况：`hashtable`
+##### 底层实现
+
+- 元素都是整数且数量较少：`intset`
+- 其他情况：`hashtable`
+
+##### 常用场景
+
 - 提供交集、并集
 - 共同好友、共同关注
 
 #### List
 
-- 底层实现：
-  - 底层使用 `quicklist`
-  - 旧版本中常见 `linkedlist + ziplist`
+##### 底层实现
+
+- 底层使用 `quicklist`
+- 旧版本中常见 `linkedlist + ziplist`
+
+##### 常用场景
+
 - FIFO 双向链表
 - 最新回复
 
 #### SortedSet
 
-- 底层实现：
-  - 数据量较小时：`listpack`
-  - 数据量较大时：`hashtable + skiplist`（查询 + 排序）
+##### 底层实现
+
+- 数据量较小时：`listpack`
+- 数据量较大时：`hashtable + skiplist`（查询 + 排序）
+
+##### 常用场景
+
 - 优先级排序，维护 score
 - 排行榜、权重消息队列
 

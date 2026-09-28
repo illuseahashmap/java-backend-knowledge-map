@@ -1320,6 +1320,16 @@ markmap:
 
 - 管理对象的生命周期和配置
 
+##### BeanFactoryPostProcessor
+
+- 处理 `BeanDefinition`
+- 在 Bean 实例化前执行
+
+##### BeanPostProcessor
+
+- 处理 Bean 实例
+- 在初始化前后执行
+
 #### MVC 框架
 
 - 提供 Web 应用分层开发支持
@@ -1346,6 +1356,11 @@ markmap:
 ##### 单例
 
 - Bean 默认单例
+
+###### 双重检查锁
+
+- `synchronized` 保证初始化过程互斥
+- `volatile` 防止指令重排和发布未完成对象
 
 ##### 模板方法
 
@@ -2747,7 +2762,9 @@ markmap:
 
 ##### 初始化
 
-- 执行 Java 代码和构造器
+- 执行类的 `<clinit>` 方法
+- 初始化静态变量的显式值并执行静态代码块
+- 不执行实例构造器
 
 #### 类加载器
 

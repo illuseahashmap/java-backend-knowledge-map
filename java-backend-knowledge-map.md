@@ -4987,6 +4987,36 @@ Trace t-001
 
 ### Agent 项目
 
+#### 多租户隔离
+
+##### 隔离链路
+
+- Token 解析租户并建立可信 `TenantContext`
+- 不信任请求参数中的 `tenantCode`
+- 应用查询和写入强制携带租户
+- PostgreSQL RLS 作为数据库兜底
+- 工具、MCP、知识范围和凭据继续按租户授权
+
+##### 注意
+
+- 只给表增加 `tenant_code` 不等于完成租户隔离
+- 平台管理员和系统 Worker 必须显式授权
+- 缓存、日志、向量和检索 Trace 同样属于租户数据
+
+#### Run ID、Attempt ID 和 Trace ID 的区别
+
+- `processInstanceId`
+  - 标识工作流实例
+- `runId`
+  - 标识一次 Agent 业务运行
+- `attemptId`
+  - 标识一次具体执行尝试
+- `stepId`
+  - 标识运行中的具体步骤
+- `traceId`
+  - 串联一次技术调用链的日志和外部调用
+  - 不能代替业务主键和幂等键
+
 #### AgentRun / Attempt / Step
 
 ##### 解决问题
@@ -5047,6 +5077,32 @@ Trace t-001
   - 租约过期后回收任务
   - 重新排队并创建新的 Attempt
 - 旧 Worker 的迟到结果不能覆盖新结果
+
+#### Lease 如何续租
+
+##### 当前方式
+
+- 每个应用实例使用独立 Heartbeat 调度器
+- 活动 Run 注册周期性续租任务
+- 续租间隔通常取 Lease 时长的三分之一
+- 每次续租执行短事务更新 `lease_expires_at`
+- 新租约不能超过 AgentRun 的绝对 `deadlineAt`
+
+##### 续租条件
+
+- Run 仍为 `RUNNING`
+- `currentAttemptId` 仍是当前 Attempt
+- `leaseOwner` 仍是当前 Worker
+- 原 Lease 尚未过期
+- 超过 Deadline 后禁止继续续租
+
+##### 高负载风险
+
+- 单线程调度器可能因数据库变慢产生续租积压
+- GC 停顿和连接池等待可能导致批量意外丢租
+- 大量丢租会触发 Recovery 并进一步增加负载
+- 后续使用有界调度池或按 Worker 批量续租
+- 过载时背压新任务，不能无界增加续租线程
 
 #### Worker 如何避免重复执行任务
 
@@ -5125,6 +5181,64 @@ Trace t-001
 - Checkpoint 只能恢复执行位置
 - 不能代替 Saga、补偿事务和业务对账
 
+#### Checkpoint 如何参与恢复
+
+##### 恢复过程
+
+- Recovery 将旧 Attempt 标记失败并重新排队 Run
+- 新 Worker 创建新的 Attempt
+- 查询历史 Attempt 中最后完整的 `STEP_COMPLETED` Checkpoint
+- 加载同一个不可变 AgentVersion 和原始输入快照
+- 从 Checkpoint 的 `nextStep` 继续执行
+
+##### 当前保存内容
+
+- `logicalStepId`
+- `nextStep`
+- 已组装的 `context`
+- 最后一次原生工具调用结果
+
+##### context 和工具结果的区别
+
+- `context`
+  - 保存计划、用户请求和历史工具结果的语义文本
+- `previousToolResult`
+  - 保存 `callId`、工具名称、参数和结果
+  - 用于恢复原生 Function Calling 协议连续性
+
+#### Checkpoint 上下文压缩
+
+##### 为什么需要
+
+- 模型上下文窗口和 Token 成本有限
+- 工具结果与 RAG 证据可能快速膨胀
+- 直接保留尾部文本可能丢失原始问题和执行计划
+- 按字符截断还可能破坏 JSON 和引用
+
+##### 压缩顺序
+
+- 去除重复协议消息
+- 大型工具结果改为执行记录引用
+- RAG 正文改为 `RetrievalTrace` 和 `EvidenceReference`
+- 按来源分配 Token 预算
+- 保留最近完整消息窗口
+- 最后才摘要允许丢失细节的早期对话
+
+##### 不能被模型摘要替代
+
+- 原始输入和 AgentVersion
+- 执行游标和工具参数哈希
+- 幂等记录与工具执行状态
+- RetrievalTrace、EvidenceReference 和 Citation
+- 人工审批状态、预算和版本信息
+
+##### 摘要要求
+
+- 保存摘要策略版本和摘要模型
+- 保存来源范围、输入指纹和原始引用
+- 摘要失败时回退到确定性裁剪
+- 压缩前后工具选择、参数、引用和流程路由必须一致
+
 #### DeepSeek 如何调用 MCP 工具
 
 ##### 职责划分
@@ -5143,6 +5257,30 @@ Trace t-001
 - Tool Registry 再校验租户授权、Schema 和风险策略
 - MCP Client 执行 `tools/call`
 - 工具结果回注模型生成最终答案
+
+#### MCP 参数 Schema 如何确定
+
+##### Schema 来源
+
+- MCP Server 在 `tools/list` 返回 `inputSchema`
+- 参数 Key 来自 `inputSchema.properties`
+- 必填字段来自 `required`
+- 平台保存 Schema 快照和内容指纹
+- 同一份 Schema 提供给模型并用于服务端校验
+
+##### 校验过程
+
+- 模型返回工具名称和 `arguments` 对象
+- Tool Registry 校验工具是否存在和是否已绑定
+- JSON Schema 校验必填字段、类型、数组和嵌套对象
+- 租户权限和业务取值需要额外校验
+- 原生 `tool_calls` 不能代替平台二次校验
+
+##### 当前项目限制
+
+- 当前只实现 JSON Schema 子集
+- 尚未完整支持 `additionalProperties`、`enum`、范围和 `$ref`
+- 后续应接入成熟 Validator，避免继续扩大自研解析器
 
 #### 为什么需要 Tool Registry
 
@@ -5166,6 +5304,29 @@ Trace t-001
 - 模型可见工具集合
 - 等于平台注册、租户授权和 AgentVersion 绑定的交集
 
+#### Agent 敏感信息如何处理
+
+##### 当前已有
+
+- Provider 凭据使用 AES-GCM 加密保存
+- MCP 只保存服务端 `credentialRef`
+- 凭据运行时注入，不提供给模型
+- Provider 错误只保留有界脱敏摘要
+- 工具输出限制最大长度
+
+##### 尚未完成
+
+- MCP 输出的通用敏感字段识别
+- RAG 证据进入 Prompt 前的敏感信息过滤
+- 模型最终输出的租户级 DLP 策略
+- 输入、工具输入、工具输出和模型输出 Guardrail
+
+##### 原则
+
+- 敏感信息策略由平台和租户定义
+- 不能只依赖 Provider 或 LangChain4j
+- 凭据保护、内容脱敏和业务授权是不同问题
+
 #### 原生 tool_calls 和文本 JSON 有什么区别
 
 ##### 原生 tool_calls
@@ -5186,6 +5347,62 @@ Trace t-001
 
 - 原生 `tool_calls` 降低格式解析失败
 - 不能代替 Schema、权限和业务校验
+
+#### RetrievalTrace 如何记录检索过程
+
+##### 当前记录
+
+- 使用固定的 `knowledge_retrieval_trace` 表
+- 记录租户、查询指纹、授权知识范围
+- 记录检索状态、策略、证据数量和时间
+- 原始问题使用 SHA-256 指纹，不直接保存明文
+- 表使用 RLS 进行租户隔离
+
+##### 生产级还需要
+
+- 关键词和向量分别命中的 Chunk
+- 各阶段分数、排序和耗时
+- 索引、Embedding、Profile 和 Reranker 版本
+- 融合与 Rerank 前后的排名变化
+- 最终答案使用的 Evidence 和 Citation
+
+##### 三个概念
+
+- `RetrievalTrace`
+  - 记录证据是怎么找到的
+- `Evidence`
+  - 表示实际找到了什么
+- `Citation`
+  - 表示最终答案引用了什么
+
+#### Grounding 解决什么问题
+
+##### 目标
+
+- 检查最终答案是否真的受到本次授权证据支持
+- 防止有检索结果但模型仍然编造结论
+- 证据不足时阻止流程按普通成功继续
+
+##### 确定性检查
+
+- Citation 必须来自本次 RetrievalTrace
+- 证据必须属于当前租户和授权范围
+- 文档和索引版本必须有效
+- 关键输出字段必须具有证据引用
+
+##### 处理结果
+
+- `ALLOW`
+- `ABSTAIN`
+- `HUMAN_REVIEW`
+- `FAIL`
+
+##### 与 LangChain4j 的关系
+
+- LangChain4j 可以提供 Embedding、Retriever 和上下文注入
+- GroundingPolicy 属于平台业务治理能力
+- LLM Judge 只能辅助语义判断，不能代替权限和版本检查
+- 当前项目已有 Evidence、Citation 和 Trace，Grounding 尚未真正完成
 
 #### Agent 配置为什么必须版本化
 

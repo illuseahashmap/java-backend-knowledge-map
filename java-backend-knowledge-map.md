@@ -1339,9 +1339,29 @@ markmap:
 - 提供统一的事务管理接口
 - 支持本地事务和全局事务扩展
 
-#### 异常处理
+#### 持久层异常转换
 
-- 提供 API 将具体异常转换为统一的 unchecked 异常
+##### 解决问题
+
+- 将 JDBC、JPA、Hibernate 等底层技术异常转换为统一的 `DataAccessException` 运行时异常体系
+- 屏蔽数据库厂商和持久层框架的异常差异
+- 业务层可按重复键、数据完整性、资源访问失败等统一语义处理
+- 减少强制捕获 checked 异常的样板代码
+
+##### 常见入口
+
+- `JdbcTemplate` 自动捕获 `SQLException`，通过 `SQLExceptionTranslator` 转换
+- `@Repository` 配合 Spring 异常转换后处理器，可将持久层原生异常转换为 `DataAccessException`
+- Spring Data Repository 等框架封装通常已在内部完成转换
+- 也可直接使用 `SQLExceptionTranslator` 或 `PersistenceExceptionTranslator`，但业务代码很少需要手动调用
+
+##### 与事务回滚的关系
+
+- `DataAccessException` 继承 `RuntimeException`
+- 异常未被捕获并继续抛出事务边界时，符合 Spring 默认回滚规则
+- 转换异常的核心目的是统一异常抽象，事务默认回滚是附带效果
+- 异常在事务方法内被捕获并吞掉时，不能依赖默认规则回滚
+- checked 异常需要通过 `rollbackFor` 等方式明确配置回滚
 
 #### 设计模式
 

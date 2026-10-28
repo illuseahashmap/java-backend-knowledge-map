@@ -1580,6 +1580,8 @@ markmap:
 #### 解决方式
 
 - 通过三级缓存实现
+- 主要适用于单例 Bean
+- Prototype Bean 不进入单例缓存，循环创建时通常无法解决
 
 #### 处理流程
 
@@ -2849,6 +2851,12 @@ markmap:
 - Java 语言实现
 - 继承 `ClassLoader`
 
+#### 类加载器隔离
+
+- 类身份由全限定名和定义它的类加载器共同决定
+- 同名类由不同类加载器加载时，属于不同类型
+- 常用于插件隔离和 Web 容器隔离
+
 #### 双亲委派
 
 ##### 什么是双亲委派模型
@@ -3198,12 +3206,17 @@ markmap:
 
 ##### 流程
 
+- Read View 记录 `min_trx_id`、`max_trx_id`、活跃事务集合和当前事务 ID
+- 版本事务 ID 小于 `min_trx_id`：可见
+- 版本事务 ID 大于等于 `max_trx_id`：不可见
+- 位于两者之间时，根据是否存在于活跃事务集合判断可见性
 - 执行 `UPDATE balance = 200`
 - 对记录加排他锁
 - 将数据页从磁盘加载到 Buffer Pool
 - 将旧版本 `balance = 100` 写入 Buffer Pool 中的 Undo Page
 - 修改 Buffer Pool 中当前数据页的记录为 `balance = 200`
 - 当前记录通过回滚指针关联 Undo Log
+- 长事务未提交时，相关旧版本不能及时被 Purge 清理，Undo Log 会持续增长
 - 将本次修改写入 Redo Log Buffer
 - 其他事务在 RC/RR 的普通快照读中，根据 Read View 判断可见性：
   - 看不到未提交的 `200`

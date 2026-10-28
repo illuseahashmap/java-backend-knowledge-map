@@ -32,11 +32,8 @@
 ```text
 java-backend-knowledge-map.md  # 可编辑的 Markmap 源文件
 docs/index.html                # 在线交互式图谱
-docs/java-backend-knowledge-map-overview.png  # 静态预览图
 ```
 
 ## 更新方式
 
 知识内容按学习进度持续补充，优先记录已经理解、验证和纠正过的内容。项目会逐步增加源码分析、实验结果、常见追问和可复现示例。
-
-![Java 后端知识图谱总览](docs/java-backend-knowledge-map-overview.png)

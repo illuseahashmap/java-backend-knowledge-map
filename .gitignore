@@ -1,0 +1,6 @@
+.idea/
+*.iml
+.agents/
+.codex-commit-staging/
+.tmp-chrome-profile*/
+docs/markmap-preview.png

@@ -5149,15 +5149,17 @@ Trace t-001
   - 长时间执行期间定期续租
 - `Recovery`
   - 租约过期后回收任务
-  - 重新排队并创建新的 Attempt
+  - 将 Run 调整为可重新领取
+  - 新的 Attempt 由后续获得执行权的 Worker 创建
 - 旧 Worker 的迟到结果不能覆盖新结果
 
 #### Lease 如何续租
 
-##### 当前方式
+##### 调度模型
 
-- 每个应用实例使用独立 Heartbeat 调度器
-- 活动 Run 注册周期性续租任务
+- 每个应用实例使用固定大小的共享 Heartbeat 调度池
+- 活动 Run 注册续租计划，不为每个 Run 创建独立线程
+- 规模扩大后可以按 Worker 或分片批量续租
 - 续租间隔通常取 Lease 时长的三分之一
 - 每次续租执行短事务更新 `lease_expires_at`
 - 新租约不能超过 AgentRun 的绝对 `deadlineAt`
@@ -5175,7 +5177,8 @@ Trace t-001
 - 单线程调度器可能因数据库变慢产生续租积压
 - GC 停顿和连接池等待可能导致批量意外丢租
 - 大量丢租会触发 Recovery 并进一步增加负载
-- 后续使用有界调度池或按 Worker 批量续租
+- 调度池、活动注册数和续租批次必须有界
+- 监控调度延迟、续租耗时、队列深度和丢租数量
 - 过载时背压新任务，不能无界增加续租线程
 
 #### Worker 如何避免重复执行任务
@@ -5265,20 +5268,26 @@ Trace t-001
 - 加载同一个不可变 AgentVersion 和原始输入快照
 - 从 Checkpoint 的 `nextStep` 继续执行
 
-##### 当前保存内容
+##### 恢复快照组成
 
+- Checkpoint Schema 版本
 - `logicalStepId`
 - `nextStep`
-- 已组装的 `context`
-- 最后一次原生工具调用结果
+- 有界上下文、摘要及其内容指纹
+- 冻结的路由决定和可用工具集合
+- 工具执行账本、RetrievalTrace 和 Evidence 的稳定引用
 
-##### context 和工具结果的区别
+##### 上下文和权威执行记录的区别
 
 - `context`
-  - 保存计划、用户请求和历史工具结果的语义文本
-- `previousToolResult`
-  - 保存 `callId`、工具名称、参数和结果
-  - 用于恢复原生 Function Calling 协议连续性
+  - 保存模型继续推理所需的语义信息
+  - 可以压缩，但不能成为外部副作用是否发生的唯一依据
+- 工具执行账本
+  - 保存 `callId`、工具名称、参数哈希、幂等键和提交结果
+  - 是恢复工具调用状态的权威来源
+- Checkpoint
+  - 保存账本和证据引用，并恢复 Function Calling 协议连续性
+  - 引用缺失或内容指纹不一致时拒绝静默恢复
 
 #### Checkpoint 上下文压缩
 
@@ -5312,6 +5321,69 @@ Trace t-001
 - 保存来源范围、输入指纹和原始引用
 - 摘要失败时回退到确定性裁剪
 - 压缩前后工具选择、参数、引用和流程路由必须一致
+
+#### 结构化意图与能力路由
+
+##### 为什么需要
+
+- 用户问题不一定需要调用工具
+- RAG 和 MCP 可能单独使用，也可能组合使用
+- 不能依赖工具名称或 Prompt 关键词决定执行路径
+- 自由文本计划无法稳定驱动后续状态机
+
+##### RouteDecision
+
+- `DIRECT`
+  - 模型直接回答，不调用外部能力
+- `RAG`
+  - 检索授权知识并基于证据回答
+- `MCP`
+  - 调用受治理工具获取实时数据或执行能力
+- `RAG_MCP`
+  - 同时需要文档证据和业务系统数据
+- `ABSTAIN`
+  - 能力不足、证据不足或风险不允许时拒绝继续
+
+##### 决策过程
+
+- 平台先计算租户、AgentVersion、主体权限和风险策略允许的能力集合
+- 模型只在允许集合中返回符合 JSON Schema 的 `RouteDecision`
+- 平台校验模式、工具、知识范围和副作用等级是否一致
+- 校验失败时只允许有界修复或安全降级
+- 路由决定和可用能力快照写入 Checkpoint，恢复时不能重新漂移
+
+##### 注意
+
+- 模型自报的 `confidence` 不是客观概率
+- `confidence` 只能作为评测或人工复核信号
+- 流程分支必须依据结构化结果和确定性业务门禁
+
+#### LangChain4j 的使用边界
+
+##### 适合复用
+
+- Chat Model 和不同 Provider 的协议适配
+- Function Calling、工具 Schema 和结构化输出
+- MCP Client 的初始化、工具发现和协议通信
+- 文档解析、Embedding、向量存储和 Rerank 适配
+- 多 Retriever 查询与结果聚合
+
+##### 平台继续负责
+
+- AgentDefinition 和不可变 AgentVersion
+- AgentRun、Attempt、Step 和 Checkpoint
+- Lease、Heartbeat、Recovery、Outbox 和 Inbox
+- Tool Registry、租户授权、风险确认、幂等和审计
+- RetrievalProfile、知识权限、Evidence、Citation 和 Grounding
+- Flowable 恢复、人工接管和流程结果契约
+
+##### 接入原则
+
+- LangChain4j 通过应用层端口作为可替换基础设施适配器
+- 领域模型和持久化契约不依赖 LangChain4j 类型
+- 不使用框架内存状态替代平台持久化运行账本
+- 不让自动工具循环绕过权限、Checkpoint 和人工确认
+- 新增通用 AI 基础能力时先评估框架，存在明确缺口后再自研
 
 #### DeepSeek 如何调用 MCP 工具
 
@@ -5350,11 +5422,16 @@ Trace t-001
 - 租户权限和业务取值需要额外校验
 - 原生 `tool_calls` 不能代替平台二次校验
 
-##### 当前项目限制
+##### 三层校验边界
 
-- 当前只实现 JSON Schema 子集
-- 尚未完整支持 `additionalProperties`、`enum`、范围和 `$ref`
-- 后续应接入成熟 Validator，避免继续扩大自研解析器
+- Provider 协议层
+  - 保证工具名称和 arguments 位于固定协议字段
+- JSON Schema 层
+  - 校验必填字段、类型、枚举、范围、数组、嵌套对象和额外属性
+- 业务治理层
+  - 校验租户授权、AgentVersion 绑定、数据范围、风险和副作用
+- 复杂 Schema 应使用成熟 Validator
+- 外部 `$ref` 必须限制解析来源，避免远程加载和递归资源消耗
 
 #### 为什么需要 Tool Registry
 
@@ -5380,20 +5457,27 @@ Trace t-001
 
 #### Agent 敏感信息如何处理
 
-##### 当前已有
+##### 凭据保护
 
-- Provider 凭据使用 AES-GCM 加密保存
-- MCP 只保存服务端 `credentialRef`
+- Provider 和 MCP 凭据加密保存或使用服务端 `credentialRef`
 - 凭据运行时注入，不提供给模型
-- Provider 错误只保留有界脱敏摘要
-- 工具输出限制最大长度
 
-##### 尚未完成
+##### 权限控制
 
-- MCP 输出的通用敏感字段识别
-- RAG 证据进入 Prompt 前的敏感信息过滤
-- 模型最终输出的租户级 DLP 策略
-- 输入、工具输入、工具输出和模型输出 Guardrail
+- 输入、工具、知识范围和数据行都按租户与主体授权
+- 模型可见能力是注册、租户授权和 AgentVersion 绑定的交集
+
+##### 内容防护
+
+- 输入、工具输入、工具输出、RAG 证据和模型输出分别执行 Guardrail
+- 对常见密钥、个人信息和租户自定义敏感字段进行识别与脱敏
+- DLP 规则必须支持租户级配置和高风险人工复核
+
+##### 日志与输出
+
+- 错误只保留有界脱敏摘要
+- 工具结果和模型输出设置大小上限
+- 原文、证据、Prompt 和响应按敏感等级控制留存和访问审计
 
 ##### 原则
 
@@ -5424,15 +5508,16 @@ Trace t-001
 
 #### RetrievalTrace 如何记录检索过程
 
-##### 当前记录
+##### 最小记录
 
-- 使用固定的 `knowledge_retrieval_trace` 表
+- 每次检索生成独立、不可变的 Trace
 - 记录租户、查询指纹、授权知识范围
 - 记录检索状态、策略、证据数量和时间
-- 原始问题使用 SHA-256 指纹，不直接保存明文
-- 表使用 RLS 进行租户隔离
+- 敏感查询可以只保存 SHA-256 指纹或受控密文
+- Trace 与 AgentRun、Step 和 Checkpoint 建立稳定关联
+- 持久化数据使用 RLS 进行租户隔离
 
-##### 生产级还需要
+##### 增强记录
 
 - 关键词和向量分别命中的 Chunk
 - 各阶段分数、排序和耗时
@@ -5449,6 +5534,62 @@ Trace t-001
 - `Citation`
   - 表示最终答案引用了什么
 
+#### RAG 完整治理链路
+
+##### 配置冻结
+
+- AgentVersion 绑定不可变 RetrievalProfileVersion
+- RetrievalProfileVersion 固定检索策略、IndexVersion、Embedding 和 Reranker 版本
+- 已启动的 AgentRun 不受后续 Profile 或索引发布影响
+
+##### 权限过滤
+
+- 可信 TenantContext 确定租户边界
+- 主体授权范围与 AgentVersion 知识范围求交
+- 过滤条件在关键词和向量检索阶段同时下推
+- 禁止先跨权限召回再只在应用层隐藏结果
+
+##### 检索执行
+
+- Query 规范化和可选改写
+- 关键词、向量或混合召回
+- 混合结果可以通过 RRF 等确定性方法融合
+- Rerank 只能重排已授权候选，不能扩大数据范围
+- 命中结果转换为 Evidence，并记录 RetrievalTrace
+
+##### 回答与治理
+
+- 模型只基于授权 Evidence 生成结构化结果、Claim 和自然语言说明
+- Citation 指向本次 Trace 中的 Evidence
+- Grounding 决定允许回答、拒答、人工复核或失败
+- 离线评测验证召回、答案、权限、成本、延迟和稳定性
+
+#### 权威数据、RAG 和图查询的边界
+
+##### RAG 适合
+
+- 制度、规范、手册、说明和历史文档
+- 需要语义召回和证据引用的知识问答
+
+##### 权威业务查询适合
+
+- 实时余额、订单状态、设备状态和人员任职状态
+- 对准确性、时效性和事务一致性有要求的数据
+- 通过受治理 MCP 或内部 Tool 查询，不从文档推断
+
+##### 图查询适合
+
+- 上级的上级、组织归属和有限跳关系
+- 关系随时间变化且需要路径审计的查询
+- 图数据库不是必须条件，也可以先通过关系表和递归查询实现
+
+##### 决策原则
+
+- 模型负责识别意图和组合证据
+- 权威系统负责返回事实
+- 确定性策略负责选择真实审批参与人
+- RAG 文档不能代替组织关系、余额和流程状态
+
 #### Grounding 解决什么问题
 
 ##### 目标
@@ -5463,6 +5604,7 @@ Trace t-001
 - 证据必须属于当前租户和授权范围
 - 文档和索引版本必须有效
 - 关键输出字段必须具有证据引用
+- 结构化 Claim 的事实和约束必须能够映射到对应 Evidence
 
 ##### 处理结果
 
@@ -5476,7 +5618,39 @@ Trace t-001
 - LangChain4j 可以提供 Embedding、Retriever 和上下文注入
 - GroundingPolicy 属于平台业务治理能力
 - LLM Judge 只能辅助语义判断，不能代替权限和版本检查
-- 当前项目已有 Evidence、Citation 和 Trace，Grounding 尚未真正完成
+
+#### Agent 输出与评测契约
+
+##### 统一输出
+
+- `result`
+  - 给程序和 Flowable 使用的结构化结果
+- `claims`
+  - 回答中可独立核验的原子结论
+- `answer`
+  - 给人阅读的自然语言说明
+
+##### 三种评测模式
+
+- `STRUCTURED_DECISION`
+  - 用于审批建议、流程路由和自动完成
+  - 先校验版本化 JSON Schema，再比较字段、Claim 和 Citation
+- `CLAIM_SET`
+  - 用于允许多种自然语言表述的知识问答
+  - 比较预期 Claim、禁止 Claim、属性和所需证据
+- `FREE_TEXT`
+  - 用于总结、润色和开放分析
+  - 使用显式 Rubric、自动评委和人工抽检
+  - 不能直接驱动流程状态
+
+##### 评测原则
+
+- 不把固定答案字符串作为唯一金标
+- 分开评估检索是否命中证据和模型是否正确组装答案
+- 结构化字段优先使用确定性比较
+- LLM Judge 需要冻结模型、Prompt 和评分规则版本
+- 权限泄露、禁止 Claim 和无证据流程动作属于硬失败
+- 只有通过 Schema、业务规则和 Grounding 的 `result` 才能驱动 Flowable
 
 #### Agent 配置为什么必须版本化
 
@@ -5486,7 +5660,10 @@ Trace t-001
 - 模型和 Provider
 - 输入输出 Schema
 - 工具绑定
-- RAG 配置
+- RouteDecision Schema 和能力集合
+- RetrievalProfile、IndexVersion 和知识范围
+- MCP 工具目录与 Schema 快照
+- Claim Catalog 和评测规则
 - Guardrail 和预算策略
 
 ##### 原因
